@@ -38,21 +38,9 @@ trusted_dns_off() {
     return 0
 }
 
-# ask MacOS if it detected a captive portal. MacOS will return 'Online', 'Unknown', 'Evaluate', 'Websheet' or ...?
-determine_stage() {
-    echo "show State:/Network/Interface/en0/CaptiveNetwork" | scutil | grep -o 'Stage : [^$]*' | awk '{print $3}'
-    return 0
-}
-
 # ask MacOS if the interface is active. MacOS will return 'TRUE' or 'FALSE'
 determine_link_up() {
     echo "show State:/Network/Interface/en0/Link" | scutil | grep -o 'Active : [^$]*' | awk '{print $3}'
-    return 0
-}
-
-# ask MacOS if a detected captive portal is waiting for user input. MacOS will return 'FALSE' or ...?
-determine_wait_on_user() {
-    echo "show State:/Network/Interface/en0/CaptiveNetwork" | scutil | grep -o 'WaitingOnUI : [^$]*' | awk '{print $3}'
     return 0
 }
 
@@ -61,7 +49,7 @@ determine_wait_on_user() {
 # does location for lock-file etc exist?
 if [ ! -d "$install_dir" ]; then
     echo "$install_dir does not exist."
-    exit 0
+    exit 1
 fi
 
 # determine if this is an echo. If so, remove lock and exit
@@ -75,54 +63,18 @@ if [[ $(determine_link_up) == "FALSE" ]]; then
     exit 0
 fi
 
-# determine if we are online. If so enable trusted DNS (if not already done) and exit
-if [[ $(determine_stage) == "Online" ]]; then
-    trusted_dns_on
-    exit 0
-fi
-
-# it is uncertain, whether we are online. We might need to use local DNS until we have a clear state
-trusted_dns_off
-
-# wait up to 30 seconds for the stage to settle
-timeout=30
-while [[ $timeout != 0 ]]; do
-    if [[ $(determine_stage) =~ ^(Evaluate|Unknown)$ ]]; then
-        sleep 1
-        timeout=$((timeout - 1))
-    else
-        break
-    fi
-done
-
-# wait up to 5 minutes for the user to solve a captive portal
-timeout=300
-while [[ $timeout != 0 ]]; do
-    if [[ $(determine_wait_on_user) == "TRUE" ]]; then
-        sleep 1
-        timeout=$((timeout - 1))
-    else
-        break
-    fi
-done
-
-# determine (again) if we are online. If so enable trusted DNS (if not already done) and exit
-if [[ $(determine_stage) == "Online" ]]; then
-    trusted_dns_on
-    exit 0
-fi
-
-# determine (again) if we are online, but use an external server, as stage tracking in MacOS sometimes fails. If so enable trusted DNS (if not already done) and exit
+# determine if we are online (use an external server, as stage tracking in MacOS frequently fails). 
+# If online, enable trusted DNS (if not already done), else switch to local DNS
 response_body=$(curl -s captive.apple.com)
 response_code=$?
 if [[ $response_code == 0 ]]; then
     if [[ $response_body == "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>" ]]; then
         trusted_dns_on
-        exit 0
+    else
+        trusted_dns_off
     fi
+else
+    trusted_dns_off
 fi
 
-# we have reached the end of our script and should not be here. Print some debug info and exit
-echo `date` - I was not able to determine whether there is a captive portal. Stage: $(determine_stage) - waitOnUser: $(determine_wait_on_user) >> $log_file
-exit 1
-
+exit 0
