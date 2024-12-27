@@ -1,14 +1,14 @@
 # DNS Tweaker 
 
 A small script to adjust the used DNS server on a Mac based on whether there is a captive portal present or not.
-I case there is a captive portal, the local DNS will be used so the portal can be displayed to the user.
+In case there is a captive portal, the local DNS will be used so the portal can be displayed to the user.
 In all other cases, a user defined DNS server will be set across all network connections of the defined interface.
 
-## Overview
-As of the time writing, RFC7710 for announcing captive portals via DHCP is unfortunately not widely implemented, so the script relies on MacOS to detect captive portals using undocumented Apple magic(TM).
-If MacOS fails, which may happen sometimes, the script will fall back to checking `captive.apple.com` directly.
-During the time of detecting the network's state (captive or no) the local DNS may be used for up to 30 seconds for all DNS requests of the system, which can lead to information leaks.
-Similiarly, the script will use the local DNS for up to 5 minutes if MacOS inicates that there is a captive portal waiting for user input.
+Basically, this script imitates the same behaviour for MacOS as iOS & iPadOS 15.5 and above already have, where Wi-Fi captive portals are exempted by Apple from DNS rules to simplify authentication.
+
+## Implementation
+As of the time writing, RFC7710 for announcing captive portals via DHCP is unfortunately not widely implemented, so the script relies on pinging `captive.apple.com` directly.
+During the time of detecting the network's state (captive or no) and if `captive.apple.com` is unreachable, the local DNS will be used for all DNS requests of the system, which can lead to information leaks.
 This is a trade-off for keeping the implementation simple, do not use this script if those information leaks are an issue to your use case.
 
 Network changes are detected by watching for file changes in `/var/run/resolv.conf`.
