@@ -38,7 +38,7 @@ trusted_dns_off() {
     return 0
 }
 
-# ask MacOS if it detected a captive portal. MacOS will return 'Online', 'Unknown', 'Evaluate' or ...?
+# ask MacOS if it detected a captive portal. MacOS will return 'Online', 'Unknown', 'Evaluate', 'Websheet' or ...?
 determine_stage() {
     echo "show State:/Network/Interface/en0/CaptiveNetwork" | scutil | grep -o 'Stage : [^$]*' | awk '{print $3}'
     return 0
